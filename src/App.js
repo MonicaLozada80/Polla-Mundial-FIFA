@@ -163,7 +163,7 @@ function UrbgLogoFull({width=280}) {
 
 export default function App() {
   const [user, setUser]           = useState(null);
-  const [appDb, setAppDb]         = useState({ predictions:{}, results:{}, locked:{} });
+  const [appDb, setAppDb]         = useState({ predictions:{}, results:{}, locked:{}, extraMatches:[] });
   const [loginName, setLoginName] = useState("");
   const [loginPass, setLoginPass] = useState("");
   const [loginErr, setLoginErr]   = useState("");
@@ -188,6 +188,12 @@ export default function App() {
   const [resFilterGroup, setResFilterGroup] = useState("ALL");
   const [editResults, setEditResults] = useState({});
   const [resMsg, setResMsg]       = useState("");
+  // Admin — partidos extra (fases eliminatorias)
+  const [newMatchH, setNewMatchH] = useState("");
+  const [newMatchA, setNewMatchA] = useState("");
+  const [newMatchDate, setNewMatchDate] = useState("");
+  const [newMatchPhase, setNewMatchPhase] = useState("Octavos");
+  const [matchMsg, setMatchMsg]   = useState("");
 
   const appDbRef = useRef(appDb);
   appDbRef.current = appDb;
@@ -199,7 +205,7 @@ export default function App() {
   async function loadData() {
     try {
       const data = await dbRead();
-      setAppDb({ predictions: data.predictions||{}, results: data.results||{}, locked: data.locked||{} });
+      setAppDb({ predictions: data.predictions||{}, results: data.results||{}, locked: data.locked||{}, extraMatches: data.extraMatches||[] });
       if(data.participants && data.participants.length > 0) setParticipants(data.participants);
     } catch(e) { console.error("Error cargando datos", e); }
     setLoading(false);
@@ -326,13 +332,56 @@ export default function App() {
     setTimeout(()=>setResMsg(""),2000);
   }
 
+  async function addExtraMatch() {
+    if(!newMatchH.trim()||!newMatchA.trim()||!newMatchDate.trim()){
+      setMatchMsg("❌ Completa todos los campos"); setTimeout(()=>setMatchMsg(""),2000); return;
+    }
+    const cur = appDbRef.current;
+    const existingExtras = cur.extraMatches||[];
+    const maxId = Math.max(1000, ...existingExtras.map(m=>m.id), ...[72]);
+    const newMatch = {
+      id: maxId+1,
+      g: newMatchPhase,
+      h: newMatchH.trim(),
+      a: newMatchA.trim(),
+      date: newMatchDate.trim(),
+      phase: newMatchPhase
+    };
+    const nextDb = {...cur, extraMatches:[...existingExtras, newMatch]};
+    try {
+      await dbWrite({...nextDb, participants: participantsRef.current});
+      setAppDb(nextDb);
+      setNewMatchH(""); setNewMatchA(""); setNewMatchDate("");
+      setMatchMsg("✅ Partido agregado");
+    } catch(e) { setMatchMsg("❌ Error: "+e.message); }
+    setTimeout(()=>setMatchMsg(""),2500);
+  }
+
+  async function deleteExtraMatch(matchId) {
+    if(!window.confirm("¿Eliminar este partido?")) return;
+    const cur = appDbRef.current;
+    const nextExtras = (cur.extraMatches||[]).filter(m=>m.id!==matchId);
+    const nextResults = {...cur.results};
+    delete nextResults[String(matchId)];
+    const nextLocked = {...cur.locked};
+    delete nextLocked[String(matchId)];
+    const nextDb = {...cur, extraMatches:nextExtras, results:nextResults, locked:nextLocked};
+    try {
+      await dbWrite({...nextDb, participants: participantsRef.current});
+      setAppDb(nextDb);
+      setMatchMsg("✅ Partido eliminado");
+    } catch(e) { setMatchMsg("❌ Error: "+e.message); }
+    setTimeout(()=>setMatchMsg(""),2000);
+  }
+
   async function savePrediction(matchId,h,a){
     const key=`${user}_${matchId}`;
     await saveDb({...appDb, predictions:{...appDb.predictions,[key]:{h,a}}});
   }
   function getScore(participant){
     let pts=0;
-    MATCHES_RAW.forEach(m=>{
+    const all=[...MATCHES_RAW, ...(appDb.extraMatches||[])];
+    all.forEach(m=>{
       const pred=appDb.predictions[`${participant}_${m.id}`];
       const real=appDb.results[m.id]||appDb.results[String(m.id)];
       if(pred&&real){const p=calcPts(pred,real);if(p!==null)pts+=p;}
@@ -341,8 +390,9 @@ export default function App() {
   }
   function getScoreMap(){ return participants.map(p=>({name:p.name,pts:getScore(p.name)})).sort((a,b)=>b.pts-a.pts); }
 
-  const filteredMatches = filterGroup==="ALL"?MATCHES_RAW:MATCHES_RAW.filter(m=>m.g===filterGroup);
-  const resFilteredMatches = resFilterGroup==="ALL"?MATCHES_RAW:MATCHES_RAW.filter(m=>m.g===resFilterGroup);
+  const allMatches = [...MATCHES_RAW, ...(appDb.extraMatches||[])];
+  const filteredMatches = filterGroup==="ALL"?allMatches:allMatches.filter(m=>m.g===filterGroup||m.phase===filterGroup);
+  const resFilteredMatches = resFilterGroup==="ALL"?allMatches:allMatches.filter(m=>m.g===resFilterGroup||m.phase===resFilterGroup);
   const inp = {width:"100%",padding:"11px 14px",borderRadius:10,border:`1px solid ${BORDER}`,background:"rgba(255,255,255,0.08)",color:"white",fontSize:16,outline:"none",boxSizing:"border-box"};
   const numInp = {width:46,textAlign:"center",padding:"8px 2px",borderRadius:10,border:`1px solid ${BORDER}`,background:"rgba(255,255,255,0.12)",color:"white",fontSize:20,fontWeight:900,outline:"none"};
 
@@ -470,7 +520,7 @@ export default function App() {
           return (
             <div key={m.id} style={{background:CARD,borderRadius:16,padding:"14px 16px",marginBottom:10,border:`1px solid ${locked?"rgba(255,255,255,0.08)":GC[m.g]+"40"}`,opacity:locked&&!pred.h?0.6:1}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:11,flexWrap:"wrap",gap:6}}>
-                <span style={{background:GC[m.g],borderRadius:20,padding:"3px 12px",fontSize:11,fontWeight:800}}>Grupo {m.g}</span>
+                <span style={{background:m.phase?("#7c3aed"):(GC[m.g]||"#64748b"),borderRadius:20,padding:"3px 12px",fontSize:11,fontWeight:800}}>{m.phase||`Grupo ${m.g}`}</span>
                 <span style={{color:"#c4b5fd",fontSize:12,fontWeight:600}}>{m.date}</span>
                 {locked&&!played&&<span style={{background:manualLocked?"#7c3aed":"#1e3a5f",borderRadius:20,padding:"3px 12px",fontSize:11,color:"#c4b5fd",fontWeight:700}}>{manualLocked?"🔒 Admin":"🔒 Fecha"}</span>}
                 {pts!==null&&<span style={{background:pts===3?"#22c55e":pts===1?"#3b82f6":"#ef4444",borderRadius:20,padding:"3px 12px",fontSize:11,fontWeight:800}}>{pts===3?"⭐ 3 pts":pts===1?"✓ 1 pt":"✗ 0 pts"}</span>}
@@ -517,7 +567,7 @@ export default function App() {
               return (
                 <div key={m.id} style={{background:CARD,borderRadius:16,padding:"14px 16px",marginBottom:12,border:`1px solid ${GC[m.g]}40`}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,flexWrap:"wrap",gap:6}}>
-                    <span style={{background:GC[m.g],borderRadius:20,padding:"3px 12px",fontSize:11,fontWeight:800}}>Grupo {m.g}</span>
+                    <span style={{background:m.phase?("#7c3aed"):(GC[m.g]||"#64748b"),borderRadius:20,padding:"3px 12px",fontSize:11,fontWeight:800}}>{m.phase||`Grupo ${m.g}`}</span>
                     <span style={{color:"white",fontWeight:800,fontSize:13}}>{FLAG[m.h]} {m.h} vs {m.a} {FLAG[m.a]}</span>
                     <span style={{color:"#c4b5fd",fontSize:11}}>{m.date}</span>
                   </div>
@@ -628,18 +678,67 @@ export default function App() {
             </div>
 
             {/* ── SECCIÓN RESULTADOS ── */}
+            {/* ── AGREGAR PARTIDOS ELIMINATORIAS ── */}
+            <div style={{background:CARD,borderRadius:16,padding:18,marginBottom:16,border:"1px solid rgba(192,132,252,0.4)"}}>
+              <h3 style={{color:"#c084fc",fontSize:15,fontWeight:800,margin:"0 0 6px",letterSpacing:1}}>➕ AGREGAR PARTIDO (FASES ELIMINATORIAS)</h3>
+              <p style={{color:"#c4b5fd",fontSize:12,margin:"0 0 14px"}}>Agrega los partidos de Octavos, Cuartos, Semifinal y Final cuando se conozcan los clasificados.</p>
+              {matchMsg&&<div style={{background:matchMsg.startsWith("✅")?"rgba(74,222,128,0.15)":"rgba(248,113,113,0.15)",border:`1px solid ${matchMsg.startsWith("✅")?"rgba(74,222,128,0.4)":"rgba(248,113,113,0.4)"}`,borderRadius:10,padding:"10px",marginBottom:12,textAlign:"center",color:matchMsg.startsWith("✅")?"#4ade80":"#f87171",fontWeight:700}}>{matchMsg}</div>}
+              <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>
+                <select value={newMatchPhase} onChange={e=>setNewMatchPhase(e.target.value)}
+                  style={{padding:"9px 12px",borderRadius:9,border:`1px solid ${BORDER}`,background:"rgba(255,255,255,0.08)",color:"white",fontSize:14,outline:"none"}}>
+                  <option value="Octavos">Octavos de final</option>
+                  <option value="Cuartos">Cuartos de final</option>
+                  <option value="Semifinal">Semifinal</option>
+                  <option value="Final">Final</option>
+                  <option value="3er Puesto">3er Puesto</option>
+                </select>
+                <input value={newMatchDate} onChange={e=>setNewMatchDate(e.target.value)} placeholder="Fecha (ej: 1 Jul)"
+                  style={{width:110,padding:"9px 12px",borderRadius:9,border:`1px solid ${BORDER}`,background:"rgba(255,255,255,0.08)",color:"white",fontSize:14,outline:"none"}}/>
+              </div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+                <input value={newMatchH} onChange={e=>setNewMatchH(e.target.value)} placeholder="🏠 Equipo local"
+                  style={{flex:1,minWidth:120,padding:"9px 12px",borderRadius:9,border:`1px solid ${BORDER}`,background:"rgba(255,255,255,0.08)",color:"white",fontSize:14,outline:"none"}}/>
+                <span style={{color:"#c4b5fd",fontWeight:900}}>vs</span>
+                <input value={newMatchA} onChange={e=>setNewMatchA(e.target.value)} placeholder="✈️ Equipo visitante"
+                  style={{flex:1,minWidth:120,padding:"9px 12px",borderRadius:9,border:`1px solid ${BORDER}`,background:"rgba(255,255,255,0.08)",color:"white",fontSize:14,outline:"none"}}/>
+                <button onClick={addExtraMatch}
+                  style={{padding:"9px 18px",borderRadius:9,background:"linear-gradient(90deg,#7c3aed,#a855f7)",color:"white",border:"none",cursor:"pointer",fontWeight:800,fontSize:14}}>
+                  Agregar
+                </button>
+              </div>
+              {(appDb.extraMatches||[]).length>0&&(
+                <div style={{marginTop:14}}>
+                  <p style={{color:"#c4b5fd",fontSize:12,fontWeight:700,margin:"0 0 8px"}}>PARTIDOS AGREGADOS:</p>
+                  {(appDb.extraMatches||[]).map(m=>(
+                    <div key={m.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:"rgba(124,58,237,0.15)",borderRadius:10,padding:"8px 12px",marginBottom:6,border:"1px solid rgba(124,58,237,0.3)"}}>
+                      <span style={{fontSize:13,color:"white",fontWeight:700}}>
+                        <span style={{background:"#7c3aed",borderRadius:12,padding:"2px 8px",fontSize:10,marginRight:8}}>{m.phase}</span>
+                        {m.h} vs {m.a} · {m.date}
+                      </span>
+                      <button onClick={()=>deleteExtraMatch(m.id)}
+                        style={{padding:"4px 10px",borderRadius:8,background:"rgba(239,68,68,0.2)",color:"#f87171",border:"1px solid rgba(239,68,68,0.3)",cursor:"pointer",fontSize:12}}>🗑️</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div style={{background:CARD,borderRadius:16,padding:18,marginBottom:16,border:"1px solid rgba(74,222,128,0.3)"}}>
               <h3 style={{color:"#4ade80",fontSize:15,fontWeight:800,margin:"0 0 6px",letterSpacing:1}}>⚽ CARGAR RESULTADOS</h3>
               <p style={{color:"#c4b5fd",fontSize:12,margin:"0 0 14px"}}>Ingresa el marcador final de cada partido jugado.</p>
 
               {resMsg&&<div style={{background:resMsg.startsWith("✅")?"rgba(74,222,128,0.15)":"rgba(248,113,113,0.15)",border:`1px solid ${resMsg.startsWith("✅")?"rgba(74,222,128,0.4)":"rgba(248,113,113,0.4)"}`,borderRadius:10,padding:"10px 16px",marginBottom:14,textAlign:"center",color:resMsg.startsWith("✅")?"#4ade80":"#f87171",fontWeight:700}}>{resMsg}</div>}
 
-              {/* Filtro grupos */}
+              {/* Filtro grupos + fases */}
               <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:14}}>
                 <button onClick={()=>setResFilterGroup("ALL")} style={{padding:"5px 12px",borderRadius:20,border:"none",background:resFilterGroup==="ALL"?"#4ade80":"rgba(255,255,255,0.08)",color:resFilterGroup==="ALL"?"#000":"white",cursor:"pointer",fontSize:11,fontWeight:700}}>Todos</button>
                 {Object.keys(GROUPS).map(g=>(
                   <button key={g} onClick={()=>setResFilterGroup(g)}
                     style={{padding:"5px 10px",borderRadius:20,border:"none",background:resFilterGroup===g?GC[g]:"rgba(255,255,255,0.08)",color:"white",cursor:"pointer",fontSize:11,fontWeight:700}}>{g}</button>
+                ))}
+                {["Octavos","Cuartos","Semifinal","3er Puesto","Final"].filter(phase=>(appDb.extraMatches||[]).some(m=>m.phase===phase)).map(phase=>(
+                  <button key={phase} onClick={()=>setResFilterGroup(phase)}
+                    style={{padding:"5px 10px",borderRadius:20,border:"none",background:resFilterGroup===phase?"#7c3aed":"rgba(255,255,255,0.08)",color:"white",cursor:"pointer",fontSize:11,fontWeight:700}}>{phase}</button>
                 ))}
               </div>
 
