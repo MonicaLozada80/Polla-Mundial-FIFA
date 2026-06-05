@@ -281,7 +281,7 @@ export default function App() {
     if(!r || r.h==="" || r.a==="") { setResMsg("❌ Ingresa ambos marcadores"); setTimeout(()=>setResMsg(""),2000); return; }
     if(isNaN(parseInt(r.h))||isNaN(parseInt(r.a))) { setResMsg("❌ Solo números"); setTimeout(()=>setResMsg(""),2000); return; }
     setResMsg("⏳ Guardando...");
-    const nextResults = {...appDbRef.current.results, [Number(matchId)]: {h: String(parseInt(r.h)), a: String(parseInt(r.a))}};
+    const nextResults = {...appDbRef.current.results, [String(matchId)]: {h: String(parseInt(r.h)), a: String(parseInt(r.a))}};
     const nextDb = {...appDbRef.current, results: nextResults};
     try {
       await dbWrite({...nextDb, participants: participantsRef.current});
@@ -294,7 +294,7 @@ export default function App() {
   async function clearResult(matchId) {
     if(!window.confirm("¿Borrar este resultado?")) return;
     const nextResults = {...appDbRef.current.results};
-    delete nextResults[Number(matchId)];
+    delete nextResults[String(matchId)];
     const nextDb = {...appDbRef.current, results: nextResults};
     try {
       await dbWrite({...nextDb, participants: participantsRef.current});
@@ -311,12 +311,12 @@ export default function App() {
     else setLoginErr("❌ Nombre o contraseña incorrectos");
   }
   function isLocked(matchId, dateStr) {
-    return appDb.locked[Number(matchId)] || isMatchLocked(dateStr);
+    return appDb.locked[String(matchId)] || isMatchLocked(dateStr);
   }
 
   async function toggleLock(matchId) {
     const cur = appDbRef.current;
-    const nextLocked = {...cur.locked, [Number(matchId)]: !cur.locked[Number(matchId)]};
+    const nextLocked = {...cur.locked, [String(matchId)]: !cur.locked[String(matchId)]};
     const nextDb = {...cur, locked: nextLocked};
     try {
       await dbWrite({...nextDb, participants: participantsRef.current});
@@ -333,7 +333,8 @@ export default function App() {
   function getScore(participant){
     let pts=0;
     MATCHES_RAW.forEach(m=>{
-      const pred=appDb.predictions[`${participant}_${m.id}`],real=appDb.results[m.id];
+      const pred=appDb.predictions[`${participant}_${m.id}`];
+      const real=appDb.results[m.id]||appDb.results[String(m.id)];
       if(pred&&real){const p=calcPts(pred,real);if(p!==null)pts+=p;}
     });
     return pts;
@@ -461,7 +462,7 @@ export default function App() {
         {/* PRONÓSTICOS */}
         {view==="predicciones"&&filteredMatches.map(m=>{
           const pred=appDb.predictions[`${user}_${m.id}`]||{h:"",a:""};
-          const real=appDb.results[m.id];
+          const real=appDb.results[m.id]||appDb.results[String(m.id)];
           const pts=pred.h!==""&&pred.a!==""&&real?calcPts(pred,real):null;
           const played=real&&real.h!=="";
           const locked=isLocked(m.id, m.date);
@@ -509,7 +510,7 @@ export default function App() {
               <p style={{color:"#c4b5fd",fontSize:12,margin:0}}>Pronósticos de todos los participantes</p>
             </div>
             {filteredMatches.map(m=>{
-              const real=appDb.results[m.id];
+              const real=appDb.results[m.id]||appDb.results[String(m.id)];
               const played=real&&real.h!=="";
               const anyPred=participants.some(p=>appDb.predictions[`${p.name}_${m.id}`]?.h!=="");
               if(!anyPred) return null;
@@ -601,7 +602,7 @@ export default function App() {
                 </div>
                 <div style={{borderTop:`1px solid ${BORDER}`,paddingTop:10}}>
                   {MATCHES_RAW.filter(m=>m.g===g).map(m=>{
-                    const real=appDb.results[m.id];
+                    const real=appDb.results[m.id]||appDb.results[String(m.id)];
                     return (
                       <div key={m.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid rgba(255,255,255,0.05)`}}>
                         <span style={{fontSize:12,color:"#c4b5fd",minWidth:52,fontWeight:600}}>{m.date}</span>
@@ -643,7 +644,7 @@ export default function App() {
               </div>
 
               {resFilteredMatches.map(m=>{
-                const real=appDb.results[m.id];
+                const real=appDb.results[m.id]||appDb.results[String(m.id)];
                 const edit=editResults[m.id]||{h:"",a:""};
                 const hasResult=real&&real.h!=="";
                 return (
