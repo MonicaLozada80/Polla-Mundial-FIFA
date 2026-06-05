@@ -500,12 +500,27 @@ export default function App() {
       <div style={{padding:14,maxWidth:700,margin:"0 auto"}}>
         {/* FILTRO */}
         {(view==="predicciones"||view==="apuestas"||view==="grupos")&&(
-          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:16}}>
-            <button onClick={()=>setFilterGroup("ALL")} style={{padding:"6px 14px",borderRadius:20,border:"none",background:filterGroup==="ALL"?"#f97316":"rgba(255,255,255,0.08)",color:"white",cursor:"pointer",fontSize:12,fontWeight:700}}>Todos</button>
-            {Object.keys(GROUPS).map(g=>(
-              <button key={g} onClick={()=>setFilterGroup(g)}
-                style={{padding:"6px 12px",borderRadius:20,border:"none",background:filterGroup===g?GC[g]:"rgba(255,255,255,0.08)",color:"white",cursor:"pointer",fontSize:12,fontWeight:700}}>{g}</button>
-            ))}
+          <div style={{marginBottom:16}}>
+            {/* Fila 1: Todos + Grupos A-L */}
+            <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:6}}>
+              <button onClick={()=>setFilterGroup("ALL")} style={{padding:"6px 14px",borderRadius:20,border:"none",background:filterGroup==="ALL"?"#a855f7":"rgba(255,255,255,0.08)",color:"white",cursor:"pointer",fontSize:12,fontWeight:700}}>Todos</button>
+              {Object.keys(GROUPS).map(g=>(
+                <button key={g} onClick={()=>setFilterGroup(g)}
+                  style={{padding:"6px 12px",borderRadius:20,border:"none",background:filterGroup===g?GC[g]:"rgba(255,255,255,0.08)",color:"white",cursor:"pointer",fontSize:12,fontWeight:700}}>{g}</button>
+              ))}
+            </div>
+            {/* Fila 2: Fases eliminatorias (solo si hay partidos agregados) */}
+            {["Octavos","Cuartos","Semifinal","3er Puesto","Final"].some(phase=>(appDb.extraMatches||[]).some(m=>m.phase===phase))&&(
+              <div style={{display:"flex",gap:6,flexWrap:"wrap",paddingTop:6,borderTop:"1px solid rgba(255,255,255,0.08)"}}>
+                <span style={{color:"#c4b5fd",fontSize:11,fontWeight:700,padding:"6px 4px",alignSelf:"center"}}>Eliminatorias:</span>
+                {["Octavos","Cuartos","Semifinal","3er Puesto","Final"].filter(phase=>(appDb.extraMatches||[]).some(m=>m.phase===phase)).map(phase=>(
+                  <button key={phase} onClick={()=>setFilterGroup(phase)}
+                    style={{padding:"6px 12px",borderRadius:20,border:"none",background:filterGroup===phase?"#7c3aed":"rgba(124,58,237,0.2)",color:filterGroup===phase?"white":"#c4b5fd",cursor:"pointer",fontSize:12,fontWeight:700,border:"1px solid rgba(124,58,237,0.4)"}}>
+                    {phase==="Octavos"?"⚔️ Octavos":phase==="Cuartos"?"🏅 Cuartos":phase==="Semifinal"?"🔥 Semifinal":phase==="3er Puesto"?"🥉 3er Puesto":"🏆 Final"}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -639,6 +654,25 @@ export default function App() {
         {/* GRUPOS */}
         {view==="grupos"&&(
           <div>
+            {/* Partidos eliminatorias si hay filtro de fase o ALL */}
+            {(filterGroup==="ALL"||["Octavos","Cuartos","Semifinal","3er Puesto","Final"].includes(filterGroup))&&(appDb.extraMatches||[]).filter(m=>filterGroup==="ALL"||m.phase===filterGroup).length>0&&(
+              <div style={{background:CARD,borderRadius:16,padding:16,marginBottom:14,border:"1px solid rgba(124,58,237,0.4)"}}>
+                <div style={{marginBottom:12}}><span style={{background:"#7c3aed",borderRadius:20,padding:"4px 14px",fontSize:12,fontWeight:800}}>⚔️ FASE ELIMINATORIA</span></div>
+                <div style={{borderTop:`1px solid ${BORDER}`,paddingTop:10}}>
+                  {(appDb.extraMatches||[]).filter(m=>filterGroup==="ALL"||m.phase===filterGroup).map(m=>{
+                    const real=appDb.results[m.id]||appDb.results[String(m.id)];
+                    return (
+                      <div key={m.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid rgba(255,255,255,0.05)`}}>
+                        <span style={{fontSize:11,color:"#a78bfa",minWidth:70,fontWeight:700}}>{m.phase} · {m.date}</span>
+                        <span style={{fontSize:13,flex:1,textAlign:"right",fontWeight:700,color:"white"}}>{FLAG[m.h]||"🏳"} {m.h}</span>
+                        <span style={{fontSize:13,fontWeight:900,minWidth:60,textAlign:"center",color:real&&real.h!==""?"#4ade80":"#3a6080"}}>{real&&real.h!==""?`${real.h}–${real.a}`:"vs"}</span>
+                        <span style={{fontSize:13,flex:1,fontWeight:700,color:"white"}}>{m.a} {FLAG[m.a]||"🏳"}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             {Object.entries(GROUPS).filter(([g])=>filterGroup==="ALL"||g===filterGroup).map(([g,teams])=>(
               <div key={g} style={{background:CARD,borderRadius:16,padding:16,marginBottom:14,border:`1px solid ${GC[g]}40`}}>
                 <div style={{marginBottom:12}}><span style={{background:GC[g],borderRadius:20,padding:"4px 14px",fontSize:12,fontWeight:800}}>GRUPO {g}</span></div>
