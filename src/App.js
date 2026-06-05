@@ -281,7 +281,7 @@ export default function App() {
     if(!r || r.h==="" || r.a==="") { setResMsg("❌ Ingresa ambos marcadores"); setTimeout(()=>setResMsg(""),2000); return; }
     if(isNaN(parseInt(r.h))||isNaN(parseInt(r.a))) { setResMsg("❌ Solo números"); setTimeout(()=>setResMsg(""),2000); return; }
     setResMsg("⏳ Guardando...");
-    const nextResults = {...appDbRef.current.results, [matchId]: {h: String(parseInt(r.h)), a: String(parseInt(r.a))}};
+    const nextResults = {...appDbRef.current.results, [Number(matchId)]: {h: String(parseInt(r.h)), a: String(parseInt(r.a))}};
     const nextDb = {...appDbRef.current, results: nextResults};
     try {
       await dbWrite({...nextDb, participants: participantsRef.current});
@@ -294,7 +294,7 @@ export default function App() {
   async function clearResult(matchId) {
     if(!window.confirm("¿Borrar este resultado?")) return;
     const nextResults = {...appDbRef.current.results};
-    delete nextResults[matchId];
+    delete nextResults[Number(matchId)];
     const nextDb = {...appDbRef.current, results: nextResults};
     try {
       await dbWrite({...nextDb, participants: participantsRef.current});
@@ -311,12 +311,12 @@ export default function App() {
     else setLoginErr("❌ Nombre o contraseña incorrectos");
   }
   function isLocked(matchId, dateStr) {
-    return appDb.locked[matchId] || isMatchLocked(dateStr);
+    return appDb.locked[Number(matchId)] || isMatchLocked(dateStr);
   }
 
   async function toggleLock(matchId) {
     const cur = appDbRef.current;
-    const nextLocked = {...cur.locked, [matchId]: !cur.locked[matchId]};
+    const nextLocked = {...cur.locked, [Number(matchId)]: !cur.locked[Number(matchId)]};
     const nextDb = {...cur, locked: nextLocked};
     try {
       await dbWrite({...nextDb, participants: participantsRef.current});
