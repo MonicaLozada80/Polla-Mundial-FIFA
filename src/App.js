@@ -55,7 +55,7 @@ const MATCHES_RAW = [
   {id:1,g:"A",h:"México",a:"Sudáfrica",date:"11 Jun"},{id:2,g:"A",h:"Corea del Sur",a:"Chequia",date:"11 Jun"},
   {id:3,g:"B",h:"Canadá",a:"Bosnia y Herz.",date:"12 Jun"},{id:4,g:"B",h:"Qatar",a:"Suiza",date:"13 Jun"},
   {id:5,g:"C",h:"Brasil",a:"Marruecos",date:"13 Jun"},{id:6,g:"C",h:"Haití",a:"Escocia",date:"13 Jun"},
-  {id:7,g:"D",h:"Estados Unidos",a:"Paraguay",date:"12 Jun"},{id:8,g:"D",h:"Australia",a:"Turquía",date:"14 Jun"},
+  {id:7,g:"D",h:"Estados Unidos",a:"Paraguay",date:"12 Jun"},{id:8,g:"D",h:"Australia",a:"Turquía",date:"13 Jun"},
   {id:9,g:"E",h:"Alemania",a:"Curazao",date:"14 Jun"},{id:10,g:"E",h:"Costa de Marfil",a:"Ecuador",date:"14 Jun"},
   {id:11,g:"F",h:"Países Bajos",a:"Japón",date:"14 Jun"},{id:12,g:"F",h:"Suecia",a:"Túnez",date:"14 Jun"},
   {id:13,g:"H",h:"España",a:"Cabo Verde",date:"15 Jun"},{id:14,g:"G",h:"Bélgica",a:"Egipto",date:"15 Jun"},
