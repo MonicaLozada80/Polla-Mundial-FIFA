@@ -701,9 +701,9 @@ export default function App() {
                 <div style={{flex:1}}>
                   <div style={{fontWeight:900,fontSize:17}}>{s.name} {s.name===user&&<span style={{color:"#c084fc",fontSize:13}}>(tú)</span>}</div>
                   <div style={{fontSize:13,marginTop:4}}>
-                    <span style={{color:"#4ade80"}}>⭐ {MATCHES_RAW.filter(m=>{const p=appDb.predictions[`${s.name}_${m.id}`],r=appDb.results[m.id];return p&&r&&calcPts(p,r)===3;}).length} exactos</span>
+                    <span style={{color:"#4ade80"}}>⭐ {[...MATCHES_RAW,...(appDb.extraMatches||[])].filter(m=>{const p=appDb.predictions[`${s.name}_${m.id}`],r=appDb.results[m.id]||appDb.results[String(m.id)];return p&&r&&calcPts(p,r)===3;}).length} exactos</span>
                     {" · "}
-                    <span style={{color:"#60a5fa"}}>✓ {MATCHES_RAW.filter(m=>{const p=appDb.predictions[`${s.name}_${m.id}`],r=appDb.results[m.id];return p&&r&&calcPts(p,r)===1;}).length} resultado</span>
+                    <span style={{color:"#60a5fa"}}>✓ {[...MATCHES_RAW,...(appDb.extraMatches||[])].filter(m=>{const p=appDb.predictions[`${s.name}_${m.id}`],r=appDb.results[m.id]||appDb.results[String(m.id)];return p&&r&&calcPts(p,r)===1;}).length} resultado</span>
                   </div>
                 </div>
                 <div style={{textAlign:"right"}}>
